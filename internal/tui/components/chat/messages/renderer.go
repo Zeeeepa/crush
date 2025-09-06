@@ -174,6 +174,13 @@ func init() {
 	registry.register(tools.LSToolName, func() renderer { return lsRenderer{} })
 	registry.register(tools.SourcegraphToolName, func() renderer { return sourcegraphRenderer{} })
 	registry.register(tools.DiagnosticsToolName, func() renderer { return diagnosticsRenderer{} })
+	// Register Ferrari-level LSP tool renderers
+	registry.register("definition", func() renderer { return lspRenderer{toolName: "definition"} })
+	registry.register("hover", func() renderer { return lspRenderer{toolName: "hover"} })
+	registry.register("references", func() renderer { return lspRenderer{toolName: "references"} })
+	registry.register("symbol", func() renderer { return lspRenderer{toolName: "symbol"} })
+	registry.register("completion", func() renderer { return lspRenderer{toolName: "completion"} })
+	registry.register("call_hierarchy", func() renderer { return lspRenderer{toolName: "call_hierarchy"} })
 	registry.register(agent.AgentToolName, func() renderer { return agentRenderer{} })
 }
 
@@ -585,6 +592,51 @@ func (dr diagnosticsRenderer) Render(v *toolCallCmp) string {
 	args := newParamBuilder().addMain("project").build()
 
 	return dr.renderWithParams(v, "Diagnostics", args, func() string {
+		return renderPlainContent(v, v.result.Content)
+	})
+}
+
+// -----------------------------------------------------------------------------
+//  LSP renderer
+// -----------------------------------------------------------------------------
+
+// lspRenderer handles LSP tool results with appropriate formatting
+type lspRenderer struct {
+	baseRenderer
+	toolName string
+}
+
+// Render displays LSP tool results with appropriate emoji and formatting
+func (lr lspRenderer) Render(v *toolCallCmp) string {
+	// Add appropriate emoji based on tool type
+	var emoji, title string
+	switch lr.toolName {
+	case "definition":
+		emoji = "🎯"
+		title = "Go to Definition"
+	case "hover":
+		emoji = "💡"
+		title = "Hover Information"
+	case "references":
+		emoji = "🔗"
+		title = "Find References"
+	case "symbol":
+		emoji = "🔍"
+		title = "Symbol Search"
+	case "completion":
+		emoji = "✨"
+		title = "Code Completion"
+	case "call_hierarchy":
+		emoji = "🌳"
+		title = "Call Hierarchy"
+	default:
+		emoji = "🔧"
+		title = "LSP Tool"
+	}
+
+	args := newParamBuilder().addMain("file").build()
+
+	return lr.renderWithParams(v, fmt.Sprintf("%s %s", emoji, title), args, func() string {
 		return renderPlainContent(v, v.result.Content)
 	})
 }

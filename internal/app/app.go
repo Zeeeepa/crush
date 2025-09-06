@@ -22,6 +22,7 @@ import (
 
 	"github.com/charmbracelet/crush/internal/cache"
 	"github.com/charmbracelet/crush/internal/lsp"
+	"github.com/charmbracelet/crush/internal/llm/context"
 	"github.com/charmbracelet/crush/internal/message"
 	"github.com/charmbracelet/crush/internal/permission"
 	"github.com/charmbracelet/crush/internal/session"
@@ -36,6 +37,9 @@ type App struct {
 	CoderAgent agent.Service
 
 	LSPClients map[string]*lsp.Client
+
+	// Ferrari-level LSP context enhancement
+	AutoEnhancer *context.AutoEnhancer
 
 	// Stream-based caching system
 	CacheManager *cache.Manager
@@ -91,6 +95,9 @@ func New(ctx context.Context, conn *sql.DB, cfg *config.Config) (*App, error) {
 		serviceEventsWG: &sync.WaitGroup{},
 		tuiWG:           &sync.WaitGroup{},
 	}
+
+	// Initialize Ferrari-level LSP context enhancer
+	app.AutoEnhancer = context.NewAutoEnhancer(app.LSPClients)
 
 	app.setupEvents()
 
