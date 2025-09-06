@@ -22,6 +22,10 @@ type Manager struct {
 	messageService message.Service
 	historyService history.Service
 	
+	// Streaming services
+	streamingSessionService StreamingSessionService
+	streamingMessageService StreamingMessageService
+	
 	// Lifecycle
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -74,6 +78,10 @@ func (m *Manager) Start(ctx context.Context) error {
 	if err := m.messageManager.Start(m.ctx); err != nil {
 		return err
 	}
+	
+	// Create streaming services
+	m.streamingSessionService = NewStreamingSessionService(m.sessionService, m.sessionManager.GetCache())
+	m.streamingMessageService = NewStreamingMessageService(m.messageService, m.messageManager.GetCache())
 	
 	m.started = true
 	return nil
@@ -148,6 +156,20 @@ func (m *Manager) IsStarted() bool {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return m.started
+}
+
+// StreamingSessions returns the streaming session service
+func (m *Manager) StreamingSessions() StreamingSessionService {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.streamingSessionService
+}
+
+// StreamingMessages returns the streaming message service
+func (m *Manager) StreamingMessages() StreamingMessageService {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.streamingMessageService
 }
 
 // Stats returns statistics for all caches
