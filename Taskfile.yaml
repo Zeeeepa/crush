@@ -40,6 +40,19 @@ tasks:
     cmds:
       - go test ./... {{.CLI_ARGS}}
 
+  test:coverage:
+    desc: Run tests with coverage
+    cmds:
+      - go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
+      - go tool cover -html=coverage.out -o coverage.html
+      - go tool cover -func=coverage.out
+
+  test:lsp:
+    desc: Run LSP-specific tests
+    cmds:
+      - go test -v ./internal/llm/tools/... -run "Test.*LSP|Test.*Definition|Test.*References|Test.*Symbol|Test.*Hover|Test.*Completion|Test.*CallHierarchy"
+      - go test -v ./internal/llm/context/... -run "Test.*Context|Test.*Enhancer"
+
   fmt:
     desc: Run gofumpt
     cmds:
@@ -79,3 +92,36 @@ tasks:
       - echo "Generated schema.json"
     generates:
       - schema.json
+
+  validate:
+    desc: Run comprehensive validation suite
+    cmds:
+      - ./scripts/validate.sh
+
+  validate:quick:
+    desc: Run quick validation (format, lint, test)
+    cmds:
+      - ./scripts/validate.sh format
+      - ./scripts/validate.sh lint
+      - ./scripts/validate.sh test
+
+  validate:lsp:
+    desc: Validate LSP-specific functionality
+    cmds:
+      - ./scripts/validate.sh lsp
+
+  validate:security:
+    desc: Run security validation
+    cmds:
+      - ./scripts/validate.sh security
+
+  benchmark:
+    desc: Run performance benchmarks
+    cmds:
+      - go test -bench=. -benchmem ./... | tee benchmark_results.txt
+
+  clean:
+    desc: Clean generated files
+    cmds:
+      - rm -f coverage.out coverage.html benchmark_results.txt validation_report.md
+      - rm -f crush
