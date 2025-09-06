@@ -20,6 +20,7 @@ import (
 	"github.com/charmbracelet/crush/internal/log"
 	"github.com/charmbracelet/crush/internal/pubsub"
 
+	"github.com/charmbracelet/crush/internal/cache"
 	"github.com/charmbracelet/crush/internal/lsp"
 	"github.com/charmbracelet/crush/internal/message"
 	"github.com/charmbracelet/crush/internal/permission"
@@ -35,6 +36,9 @@ type App struct {
 	CoderAgent agent.Service
 
 	LSPClients map[string]*lsp.Client
+
+	// Stream-based caching system
+	CacheManager *cache.Manager
 
 	clientsMutex sync.RWMutex
 
@@ -65,12 +69,17 @@ func New(ctx context.Context, conn *sql.DB, cfg *config.Config) (*App, error) {
 		allowedTools = cfg.Permissions.AllowedTools
 	}
 
+	// Initialize cache manager
+	cacheConfig := cache.DefaultCacheConfig()
+	cacheManager := cache.NewManager(sessions, messages, files, cacheConfig)
+
 	app := &App{
-		Sessions:    sessions,
-		Messages:    messages,
-		History:     files,
-		Permissions: permission.NewPermissionService(cfg.WorkingDir(), skipPermissionsRequests, allowedTools),
-		LSPClients:  make(map[string]*lsp.Client),
+		Sessions:     sessions,
+		Messages:     messages,
+		History:      files,
+		Permissions:  permission.NewPermissionService(cfg.WorkingDir(), skipPermissionsRequests, allowedTools),
+		LSPClients:   make(map[string]*lsp.Client),
+		CacheManager: cacheManager,
 
 		globalCtx: ctx,
 
@@ -84,6 +93,11 @@ func New(ctx context.Context, conn *sql.DB, cfg *config.Config) (*App, error) {
 	}
 
 	app.setupEvents()
+
+	// Start cache manager
+	if err := app.CacheManager.Start(ctx); err != nil {
+		return nil, fmt.Errorf("failed to start cache manager: %w", err)
+	}
 
 	// Initialize LSP clients in the background.
 	app.initLSPClients(ctx)
@@ -323,6 +337,13 @@ func (app *App) Subscribe(program *tea.Program) {
 func (app *App) Shutdown() {
 	if app.CoderAgent != nil {
 		app.CoderAgent.CancelAll()
+	}
+
+	// Stop cache manager
+	if app.CacheManager != nil {
+		if err := app.CacheManager.Stop(); err != nil {
+			slog.Error("Failed to stop cache manager", "error", err)
+		}
 	}
 
 	for cancel := range app.watcherCancelFuncs.Seq() {
