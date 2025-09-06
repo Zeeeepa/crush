@@ -164,7 +164,22 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// Commands
 	case commands.SwitchSessionsMsg:
 		return a, func() tea.Msg {
-			allSessions, _ := a.app.Sessions.List(context.Background())
+			// Try streaming first, fallback to direct access
+			var allSessions []session.Session
+			var err error
+			
+			if a.app.CacheManager != nil {
+				streamingSessions := a.app.CacheManager.StreamingSessions()
+				if streamingSessions != nil {
+					allSessions, err = streamingSessions.List(context.Background())
+				}
+			}
+			
+			// Fallback to direct service access
+			if allSessions == nil && err == nil {
+				allSessions, _ = a.app.Sessions.List(context.Background())
+			}
+			
 			return dialogs.OpenDialogMsg{
 				Model: sessions.NewSessionDialogCmp(allSessions, a.selectedSessionID),
 			}
@@ -470,7 +485,22 @@ func (a *appModel) handleKeyPressMsg(msg tea.KeyPressMsg) tea.Cmd {
 		}
 		cmds = append(cmds,
 			func() tea.Msg {
-				allSessions, _ := a.app.Sessions.List(context.Background())
+				// Try streaming first, fallback to direct access
+				var allSessions []session.Session
+				var err error
+				
+				if a.app.CacheManager != nil {
+					streamingSessions := a.app.CacheManager.StreamingSessions()
+					if streamingSessions != nil {
+						allSessions, err = streamingSessions.List(context.Background())
+					}
+				}
+				
+				// Fallback to direct service access
+				if allSessions == nil && err == nil {
+					allSessions, _ = a.app.Sessions.List(context.Background())
+				}
+				
 				return dialogs.OpenDialogMsg{
 					Model: sessions.NewSessionDialogCmp(allSessions, a.selectedSessionID),
 				}

@@ -541,7 +541,23 @@ func (m *messageListCmp) SetSession(session session.Session) tea.Cmd {
 	}
 
 	m.session = session
-	sessionMessages, err := m.app.Messages.List(context.Background(), session.ID)
+	
+	// Try streaming first, fallback to direct access
+	var sessionMessages []message.Message
+	var err error
+	
+	if m.app.CacheManager != nil {
+		streamingMessages := m.app.CacheManager.StreamingMessages()
+		if streamingMessages != nil {
+			sessionMessages, err = streamingMessages.List(context.Background(), session.ID)
+		}
+	}
+	
+	// Fallback to direct service access
+	if sessionMessages == nil && err == nil {
+		sessionMessages, err = m.app.Messages.List(context.Background(), session.ID)
+	}
+	
 	if err != nil {
 		return util.ReportError(err)
 	}
@@ -613,7 +629,21 @@ func (m *messageListCmp) convertAssistantMessage(msg message.Message, toolResult
 		uiMessages = append(uiMessages, messages.NewToolCallCmp(msg.ID, tc, m.app.Permissions, options...))
 		// If this tool call is the agent tool, fetch nested tool calls
 		if tc.Name == agent.AgentToolName {
-			nestedMessages, _ := m.app.Messages.List(context.Background(), tc.ID)
+			// Try streaming first, fallback to direct access
+			var nestedMessages []message.Message
+			
+			if m.app.CacheManager != nil {
+				streamingMessages := m.app.CacheManager.StreamingMessages()
+				if streamingMessages != nil {
+					nestedMessages, _ = streamingMessages.List(context.Background(), tc.ID)
+				}
+			}
+			
+			// Fallback to direct service access
+			if nestedMessages == nil {
+				nestedMessages, _ = m.app.Messages.List(context.Background(), tc.ID)
+			}
+			
 			nestedToolResultMap := m.buildToolResultMap(nestedMessages)
 			nestedUIMessages := m.convertMessagesToUI(nestedMessages, nestedToolResultMap)
 			nestedToolCalls := make([]messages.ToolCallCmp, 0, len(nestedUIMessages))

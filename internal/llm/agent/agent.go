@@ -180,7 +180,9 @@ func NewAgent(
 		}()
 
 		cwd := cfg.WorkingDir()
-		allTools := []tools.BaseTool{
+		
+		// Create base tools
+		baseTools := []tools.BaseTool{
 			tools.NewBashTool(permissions, cwd),
 			tools.NewDownloadTool(permissions, cwd),
 			tools.NewEditTool(lspClients, permissions, history, cwd),
@@ -194,6 +196,18 @@ func NewAgent(
 			tools.NewWriteTool(lspClients, permissions, history, cwd),
 		}
 
+		// Wrap tools with Ferrari-level LSP context enhancement
+		var allTools []tools.BaseTool
+		if len(lspClients) > 0 && app != nil && app.AutoEnhancer != nil {
+			// Enhance tools with automatic LSP context
+			for _, tool := range baseTools {
+				allTools = append(allTools, tools.NewEnhancedToolWrapper(tool, app.AutoEnhancer))
+			}
+		} else {
+			// Use base tools without enhancement
+			allTools = baseTools
+		}
+
 		mcpToolsOnce.Do(func() {
 			mcpTools = doGetMCPTools(ctx, permissions, cfg)
 		})
@@ -201,6 +215,13 @@ func NewAgent(
 
 		if len(lspClients) > 0 {
 			allTools = append(allTools, tools.NewDiagnosticsTool(lspClients))
+			// Add Ferrari-level LSP tools for advanced code intelligence
+			allTools = append(allTools, tools.NewDefinitionTool(lspClients))
+			allTools = append(allTools, tools.NewHoverTool(lspClients))
+			allTools = append(allTools, tools.NewReferencesTool(lspClients))
+			allTools = append(allTools, tools.NewSymbolTool(lspClients))
+			allTools = append(allTools, tools.NewCompletionTool(lspClients))
+			allTools = append(allTools, tools.NewCallHierarchyTool(lspClients))
 		}
 
 		if agentTool != nil {
