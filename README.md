@@ -470,6 +470,106 @@ config:
 }
 ```
 
+## Development & Testing
+
+Crush includes a comprehensive testing framework with validation gates to ensure code quality and reliability.
+
+### Quick Testing
+
+```bash
+# Run all tests
+go test ./...
+
+# Run tests with coverage
+go test -cover ./...
+
+# Run LSP-specific tests
+go test ./internal/llm/tools/... -run "Test.*LSP"
+```
+
+### Using Task Runner
+
+Crush uses [Task](https://taskfile.dev/) for build automation:
+
+```bash
+# Run tests with coverage report
+task test:coverage
+
+# Run LSP-specific tests
+task test:lsp
+
+# Run full validation suite
+task validate
+
+# Run quick validation (format, lint, test)
+task validate:quick
+
+# Run benchmarks
+task benchmark
+```
+
+### Validation Gates
+
+The validation script (`scripts/validate.sh`) implements comprehensive quality gates following the validation-gates agent pattern:
+
+```bash
+# Run full validation suite
+./scripts/validate.sh
+
+# Run specific validation
+./scripts/validate.sh lsp      # LSP-specific tests
+./scripts/validate.sh test     # All tests
+./scripts/validate.sh security # Security scan
+./scripts/validate.sh bench    # Performance benchmarks
+```
+
+### Validation Checklist
+
+Before any feature is considered complete, it must pass:
+
+- [ ] **Unit Tests**: All individual component tests pass
+- [ ] **Integration Tests**: Tests with mock LSP servers pass  
+- [ ] **Performance Benchmarks**: No significant performance degradation
+- [ ] **Error Handling**: Graceful failure when dependencies unavailable
+- [ ] **Code Coverage**: Minimum 80% coverage for new code
+- [ ] **Linting**: No linting errors or warnings
+- [ ] **Security Scan**: No security vulnerabilities detected
+- [ ] **Build Validation**: Clean build without warnings
+
+### LSP Testing Framework
+
+Crush includes a sophisticated mock LSP server for testing LSP context integration:
+
+```go
+// Create mock LSP server with test data
+mockServer := lsptesting.NewMockLSPServer()
+
+// Add test definitions
+testLocation := lsptesting.CreateTestLocation(uri, 10, 5)
+mockServer.AddDefinition("file:///test.go:5:10", []protocol.Location{testLocation})
+
+// Add hover information  
+testHover := lsptesting.CreateTestHover("Function documentation")
+mockServer.AddHover("file:///test.go:10:5", testHover)
+```
+
+The testing framework provides:
+
+- **Mock LSP Server**: Realistic LSP responses without requiring actual LSP servers
+- **Request Tracking**: Verify LSP calls and behavior
+- **Performance Benchmarks**: Ensure LSP features maintain performance
+- **Error Simulation**: Test graceful degradation scenarios
+- **Comprehensive Coverage**: Unit, integration, and end-to-end tests
+
+### Quality Metrics
+
+- **Test Coverage**: Target ≥80% for LSP-related code
+- **Performance**: LSP operations complete within reasonable time limits  
+- **Error Handling**: Graceful handling of LSP failures (no crashes)
+- **Memory Usage**: No memory leaks in long-running operations
+
+For detailed testing documentation, see [`docs/testing-lsp-context.md`](docs/testing-lsp-context.md).
+
 ## Whatcha think?
 
 We’d love to hear your thoughts on this project. Need help? We gotchu. You can find us on:
